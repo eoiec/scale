@@ -1,0 +1,1355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="权衡 Scale —— 基于 AHP 层次分析法的多准则决策助手，把纠结变成可计算、可检验、可回溯的结论。">
+<title>权衡 Scale · 基于 AHP 的多准则决策助手</title>
+<style>
+/* ============================================================
+   权衡 Scale · 设计系统
+   冷色石板蓝 + 琥珀点缀，与「拾忆 Recall」的暖纸色形成区分
+   ============================================================ */
+:root{
+  --bg:#F4F6FA;
+  --surface:#FFFFFF;
+  --surface-2:#EDF1F8;
+  --line:#DFE5EF;
+  --line-2:#CBD3E1;
+
+  --ink:#16203A;
+  --ink-2:#46536F;
+  --ink-3:#7A86A1;
+
+  --primary:#2B4C8C;
+  --primary-d:#1E3768;
+  --primary-l:#E8EEF9;
+  --accent:#C2710C;
+  --accent-l:#FDF1E0;
+
+  --ok:#1F7A5C;
+  --ok-l:#E6F4EE;
+  --warn:#B86A00;
+  --warn-l:#FDF2DF;
+  --bad:#B2372F;
+  --bad-l:#FBEAE8;
+
+  --r-s:8px; --r:12px; --r-l:18px;
+  --sh:0 1px 2px rgba(22,32,58,.05), 0 4px 14px rgba(22,32,58,.06);
+  --sh-l:0 6px 28px rgba(22,32,58,.10);
+
+  --mono:"Cascadia Mono","Consolas","SFMono-Regular",Menlo,monospace;
+  --sans:"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Segoe UI",system-ui,sans-serif;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:var(--sans); font-size:14px; line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+
+/* ---------- 顶栏 ---------- */
+.topbar{
+  position:sticky; top:0; z-index:60;
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:10px 20px;
+  background:rgba(255,255,255,.92); backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:10px;color:var(--primary)}
+.logo{width:30px;height:30px;flex:none}
+.brand-text{display:flex;flex-direction:column;line-height:1.15}
+.brand-text strong{font-size:16px;letter-spacing:.5px;color:var(--ink)}
+.brand-text span{font-size:10px;letter-spacing:2.5px;color:var(--ink-3)}
+
+.topbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.picker{
+  max-width:200px; padding:6px 10px;
+  border:1px solid var(--line); border-radius:var(--r-s);
+  background:var(--surface); cursor:pointer;
+}
+
+/* ---------- 按钮 ---------- */
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  padding:7px 14px; border-radius:var(--r-s);
+  border:1px solid var(--line-2); background:var(--surface); color:var(--ink-2);
+  cursor:pointer; font-size:13px; font-weight:500;
+  transition:background .15s, border-color .15s, color .15s, transform .06s;
+  white-space:nowrap;
+}
+.btn:hover{background:var(--surface-2);border-color:var(--primary);color:var(--primary)}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-d);border-color:var(--primary-d);color:#fff}
+.btn-accent{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-accent:hover{background:#A55F08;border-color:#A55F08;color:#fff}
+.btn-ghost{background:transparent;border-color:var(--line)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* ---------- 布局 ---------- */
+.shell{display:flex;min-height:calc(100vh - 52px);align-items:flex-start}
+.sidebar{
+  position:sticky; top:52px;
+  width:206px; flex:none;
+  padding:16px 12px;
+  display:flex; flex-direction:column; gap:4px;
+}
+.nav-item{
+  display:flex; align-items:center; gap:10px;
+  padding:9px 12px; border-radius:var(--r-s);
+  color:var(--ink-2); text-decoration:none; font-size:13.5px; font-weight:500;
+  transition:background .15s,color .15s;
+}
+.nav-item:hover{background:var(--surface-2)}
+.nav-item.on{background:var(--primary-l);color:var(--primary);font-weight:600}
+.ni-ico{width:18px;text-align:center;font-size:14px;opacity:.85}
+
+#main{flex:1;min-width:0;padding:24px 30px 60px;max-width:1080px}
+
+/* ---------- 通用 ---------- */
+.page-head{margin-bottom:20px}
+.page-head h1{margin:0 0 4px;font-size:21px;font-weight:700;letter-spacing:.2px}
+.page-head p{margin:0;color:var(--ink-3);font-size:13px}
+
+.card{
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--r-l); padding:18px 20px; margin-bottom:16px;
+  box-shadow:var(--sh);
+}
+.card h2{margin:0 0 4px;font-size:15.5px;font-weight:700}
+.card h3{margin:0 0 8px;font-size:14px;font-weight:600}
+.card .hint{margin:0 0 14px;color:var(--ink-3);font-size:12.5px}
+.sec+.sec{margin-top:18px}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+
+.empty{
+  text-align:center;padding:52px 20px;color:var(--ink-3);
+}
+.empty h2{font-size:16px;color:var(--ink-2);margin:0 0 8px}
+.empty p{margin:0 0 18px;font-size:13px}
+
+/* ---------- 标签 / 徽章 ---------- */
+.tag{
+  display:inline-block;padding:2px 8px;border-radius:99px;
+  font-size:11.5px;font-weight:600;background:var(--surface-2);color:var(--ink-2);
+}
+.tag-ok{background:var(--ok-l);color:var(--ok)}
+.tag-warn{background:var(--warn-l);color:var(--warn)}
+.tag-bad{background:var(--bad-l);color:var(--bad)}
+.tag-pri{background:var(--primary-l);color:var(--primary)}
+.tag-acc{background:var(--accent-l);color:var(--accent)}
+
+/* ---------- 进度条 ---------- */
+.prog{height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden}
+.prog > i{display:block;height:100%;background:var(--primary);border-radius:99px;transition:width .3s}
+.prog.ok > i{background:var(--ok)}
+
+/* ---------- 列表编辑 ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.chip{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:6px 8px 6px 12px;border-radius:99px;
+  background:var(--surface-2);border:1px solid var(--line);font-size:13px;
+}
+.chip .x{
+  width:18px;height:18px;border-radius:50%;border:none;cursor:pointer;
+  background:var(--line-2);color:var(--surface);font-size:12px;line-height:1;
+  display:flex;align-items:center;justify-content:center;padding:0;
+}
+.chip .x:hover{background:var(--bad)}
+.inline-add{display:flex;gap:8px}
+.inline-add input{flex:1}
+
+input[type=text],input[type=number],textarea,select{
+  padding:8px 11px;border:1px solid var(--line-2);border-radius:var(--r-s);
+  background:var(--surface);outline:none;transition:border-color .15s,box-shadow .15s;
+}
+input:focus,textarea:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(43,76,140,.10)}
+textarea{resize:vertical;min-height:70px;width:100%}
+label.fl{display:block;font-size:12.5px;font-weight:600;color:var(--ink-2);margin-bottom:5px}
+
+/* ---------- 两两比较 ---------- */
+.cmp-wrap{display:flex;flex-direction:column;gap:14px}
+.cmp-card{
+  border:1px solid var(--line);border-radius:var(--r);
+  background:var(--surface);padding:16px 18px;box-shadow:var(--sh);
+}
+.cmp-q{
+  font-size:13px;color:var(--ink-3);margin-bottom:12px;
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+}
+.cmp-q b{color:var(--primary);font-weight:600}
+.cmp-row{display:flex;align-items:center;gap:14px}
+.cmp-side{
+  flex:1;min-width:0;padding:11px 14px;border-radius:var(--r-s);
+  background:var(--surface-2);font-weight:600;font-size:13.5px;text-align:center;
+  border:1px solid transparent;transition:all .15s;
+}
+.cmp-side.win{background:var(--primary-l);border-color:var(--primary);color:var(--primary)}
+.scale{flex:none;display:flex;align-items:center;gap:3px}
+.scale button{
+  width:34px;height:34px;padding:0;border-radius:var(--r-s);
+  border:1px solid var(--line-2);background:var(--surface);
+  font-size:12.5px;font-weight:700;cursor:pointer;color:var(--ink-2);
+  transition:all .12s;
+}
+.scale button:hover{background:var(--primary-l);border-color:var(--primary);color:var(--primary)}
+.scale button.on{background:var(--primary);border-color:var(--primary);color:#fff}
+.scale button.mid.on{background:var(--ink-3);border-color:var(--ink-3)}
+.scale .mid{width:28px}
+.cmp-lab{text-align:center;font-size:11px;color:var(--ink-3);margin-top:7px}
+.cmp-nav{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:4px}
+
+/* ---------- 结果条形 ---------- */
+.rank{padding:0;margin:0;list-style:none}
+.rank li{
+  display:flex;align-items:center;gap:12px;padding:11px 0;
+  border-bottom:1px dashed var(--line);
+}
+.rank li:last-child{border-bottom:none}
+.rank-no{
+  width:26px;height:26px;flex:none;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--surface-2);color:var(--ink-2);font-size:12px;font-weight:700;
+}
+.rank li.top .rank-no{background:var(--accent);color:#fff}
+.rank-name{flex:1;min-width:0;font-weight:600;font-size:14px}
+.rank-bar{flex:0 0 42%;height:9px;border-radius:99px;background:var(--surface-2);overflow:hidden}
+.rank-bar > i{display:block;height:100%;border-radius:99px;background:var(--primary);transition:width .4s}
+.rank li.top .rank-bar > i{background:var(--accent)}
+.rank-val{flex:none;width:64px;text-align:right;font-family:var(--mono);font-size:13px;font-weight:700}
+
+/* ---------- 矩阵 ---------- */
+.mtx-scroll{overflow-x:auto}
+table.mtx{border-collapse:separate;border-spacing:3px;font-size:12.5px}
+table.mtx th{
+  font-weight:600;color:var(--ink-2);padding:5px 8px;white-space:nowrap;
+  font-size:12px;
+}
+table.mtx th.rowlab{text-align:right;max-width:110px;overflow:hidden;text-overflow:ellipsis}
+table.mtx td{
+  width:52px;height:34px;text-align:center;border-radius:6px;
+  font-family:var(--mono);font-size:12px;font-weight:600;
+  border:1px solid var(--line);
+}
+table.mtx td.diag{background:var(--surface-2);color:var(--ink-3)}
+
+/* ---------- 一致性 ---------- */
+.cr-box{
+  display:flex;gap:16px;align-items:center;flex-wrap:wrap;
+  padding:14px 16px;border-radius:var(--r);
+  background:var(--surface-2);border:1px solid var(--line);
+}
+.cr-box.good{background:var(--ok-l);border-color:#BFE3D3}
+.cr-box.bad{background:var(--bad-l);border-color:#F0CFCB}
+.cr-num{font-family:var(--mono);font-size:26px;font-weight:800;line-height:1}
+.cr-num small{font-size:12px;font-weight:600;opacity:.6;margin-left:2px}
+
+/* ---------- 敏感性 ---------- */
+.slider-row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.slider-row label{flex:0 0 120px;font-size:13px;font-weight:600}
+.slider-row input[type=range]{flex:1;accent-color:var(--primary)}
+.slider-row .v{flex:0 0 58px;text-align:right;font-family:var(--mono);font-weight:700;font-size:13px}
+.flip-note{
+  margin-top:12px;padding:11px 14px;border-radius:var(--r-s);
+  background:var(--accent-l);border:1px solid #F0D6AE;
+  font-size:13px;color:#7A4708;
+}
+
+/* ---------- 说明页 ---------- */
+.prose{max-width:760px}
+.prose h2{font-size:16.5px;margin:26px 0 10px;padding-top:6px}
+.prose h3{font-size:14px;margin:18px 0 8px;color:var(--primary)}
+.prose p{margin:0 0 12px;color:var(--ink-2)}
+.prose ul,.prose ol{margin:0 0 14px;padding-left:22px;color:var(--ink-2)}
+.prose li{margin-bottom:6px}
+.prose code{
+  font-family:var(--mono);font-size:12.5px;
+  background:var(--surface-2);padding:1.5px 6px;border-radius:5px;color:var(--primary-d);
+}
+.prose .formula{
+  font-family:var(--mono);background:var(--surface-2);
+  border-left:3px solid var(--primary);border-radius:0 var(--r-s) var(--r-s) 0;
+  padding:12px 16px;margin:12px 0;font-size:13px;color:var(--ink);
+  overflow-x:auto;white-space:pre;
+}
+table.tbl{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0 16px}
+table.tbl th,table.tbl td{border:1px solid var(--line);padding:8px 11px;text-align:left}
+table.tbl th{background:var(--surface-2);font-weight:600;font-size:12.5px}
+
+/* ---------- 弹窗 / Toast ---------- */
+.modal-mask{
+  position:fixed;inset:0;background:rgba(22,32,58,.42);
+  display:flex;align-items:center;justify-content:center;padding:20px;z-index:200;
+}
+.modal{
+  background:var(--surface);border-radius:var(--r-l);box-shadow:var(--sh-l);
+  width:100%;max-width:520px;max-height:86vh;overflow:auto;padding:22px 24px;
+}
+.modal h2{margin:0 0 14px;font-size:17px}
+.modal-foot{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+.field{margin-bottom:14px}
+.field input[type=text],.field textarea{width:100%}
+#toastRoot{position:fixed;left:50%;bottom:32px;transform:translateX(-50%);z-index:300;display:flex;flex-direction:column;gap:8px;align-items:center}
+.toast{
+  padding:9px 18px;border-radius:99px;background:var(--ink);color:#fff;
+  font-size:13px;box-shadow:var(--sh-l);animation:tin .22s ease;
+}
+.toast.err{background:var(--bad)}
+.toast.ok{background:var(--ok)}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ---------- 响应式 ---------- */
+@media (max-width:980px){
+  .grid-2,.grid-3{grid-template-columns:1fr}
+  #main{padding:20px 18px 90px}
+}
+@media (max-width:760px){
+  .shell{flex-direction:column}
+  .sidebar{
+    position:fixed;bottom:0;left:0;right:0;top:auto;width:auto;
+    flex-direction:row;padding:6px 4px;gap:2px;
+    background:rgba(255,255,255,.96);backdrop-filter:blur(10px);
+    border-top:1px solid var(--line);z-index:70;
+    box-shadow:0 -2px 12px rgba(22,32,58,.06);
+    padding-bottom:calc(6px + env(safe-area-inset-bottom));
+  }
+  .nav-item{flex:1;flex-direction:column;gap:2px;padding:6px 2px;font-size:11px;justify-content:center}
+  .ni-ico{font-size:16px;width:auto}
+  .ni-txt{font-size:10.5px}
+  #main{padding:16px 14px 84px;max-width:none}
+  .topbar{padding:8px 12px}
+  .brand-text span{display:none}
+  .picker{max-width:120px;font-size:12px}
+  .btn{padding:6px 10px;font-size:12px}
+  .cmp-row{flex-direction:column;gap:8px}
+  .cmp-side{flex:none;width:100%}
+  .scale{width:100%;justify-content:center;flex-wrap:wrap}
+  .rank-bar{flex:0 0 34%}
+  .page-head h1{font-size:18px}
+}
+
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
+      <path d="M16 4v24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <path d="M5 10h22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <path d="M5 10l-3 7a5 5 0 0 0 6 0z" fill="currentColor" opacity=".18"/>
+      <path d="M27 10l3 7a5 5 0 0 1-6 0z" fill="currentColor" opacity=".18"/>
+      <path d="M9 28h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>
+    <div class="brand-text">
+      <strong>权衡</strong>
+      <span>SCALE</span>
+    </div>
+  </div>
+
+  <div class="topbar-actions">
+    <select id="decisionPicker" class="picker" title="切换决策"></select>
+    <button class="btn btn-ghost" id="btnNew">新建</button>
+    <button class="btn btn-ghost" id="btnExport">导出</button>
+    <button class="btn btn-ghost" id="btnImport">导入</button>
+    <input type="file" id="fileInput" accept=".json,application/json" hidden>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar">
+    <a class="nav-item" data-view="setup"><span class="ni-ico">◫</span><span class="ni-txt">决策建模</span></a>
+    <a class="nav-item" data-view="compare"><span class="ni-ico">⇄</span><span class="ni-txt">两两比较</span></a>
+    <a class="nav-item" data-view="result"><span class="ni-ico">◎</span><span class="ni-txt">权重结果</span></a>
+    <a class="nav-item" data-view="matrix"><span class="ni-ico">▦</span><span class="ni-txt">矩阵与检验</span></a>
+    <a class="nav-item" data-view="about"><span class="ni-ico">✦</span><span class="ni-txt">算法说明</span></a>
+  </nav>
+
+  <main id="main"></main>
+</div>
+
+<div id="modalRoot"></div>
+<div id="toastRoot"></div>
+
+<script>
+/* ============================================================
+   权衡 Scale · 基于 AHP 层次分析法的多准则决策助手
+   零第三方依赖 · localStorage 持久化 · 单页应用
+   ============================================================ */
+(function () {
+  'use strict';
+
+  var KEY = 'scale.store.v1';
+  var RI = [0, 0, 0.58, 0.90, 1.12, 1.24, 1.32, 1.41, 1.45, 1.49, 1.51, 1.54, 1.56, 1.58, 1.59];
+
+  /* ---------------- 工具 ---------------- */
+  function $(s, r) { return (r || document).querySelector(s); }
+  function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+  function uid() { return Math.random().toString(36).slice(2, 9); }
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function round(v, n) { var m = Math.pow(10, n || 2); return Math.round(v * m) / m; }
+  function pct(v) { return (v * 100).toFixed(1) + '%'; }
+
+  function toast(msg, kind) {
+    var d = document.createElement('div');
+    d.className = 'toast' + (kind ? ' ' + kind : '');
+    d.textContent = msg;
+    $('#toastRoot').appendChild(d);
+    setTimeout(function () { d.remove(); }, 2200);
+  }
+
+  /* ============================================================
+     AHP 引擎
+     ============================================================ */
+
+  /* 由判断矩阵求权重：几何平均法（对数最小二乘意义下的最优解） */
+  function geomWeights(M) {
+    var n = M.length, w = [], i, j, s = 0;
+    for (i = 0; i < n; i++) {
+      var p = 1;
+      for (j = 0; j < n; j++) p *= M[i][j];
+      var g = Math.pow(Math.abs(p), 1 / n);
+      w.push(g); s += g;
+    }
+    if (s <= 0) return w.map(function () { return 1 / n; });
+    return w.map(function (x) { return x / s; });
+  }
+
+  /* 一致性检验：lambda_max / CI / CR */
+  function consistency(M, w) {
+    var n = M.length, i, j;
+    if (n < 2) return { lambda: n, CI: 0, CR: 0, ok: true, n: n };
+    var lam = 0;
+    for (i = 0; i < n; i++) {
+      var s = 0;
+      for (j = 0; j < n; j++) s += M[i][j] * w[j];
+      lam += s / w[i];
+    }
+    lam = lam / n;
+    var CI = (lam - n) / (n - 1);
+    var ri = n - 1 < RI.length ? RI[n - 1] : 1.60;
+    var CR = ri > 0 ? CI / ri : 0;
+    if (n === 2) CR = 0;                 /* 2 阶矩阵必然一致 */
+    return { lambda: lam, CI: CI, CR: CR, ok: CR < 0.10, n: n };
+  }
+
+  /* 找出最不自洽的三角环（i,j,k 使 M[i][j]*M[j][k] 与 M[i][k] 偏离最大） */
+  function worstTriples(M, names) {
+    var n = M.length, out = [], i, j, k;
+    if (n < 3) return out;
+    for (i = 0; i < n; i++) {
+      for (j = i + 1; j < n; j++) {
+        for (k = j + 1; k < n; k++) {
+          if (!(M[i][j] > 0 && M[j][k] > 0 && M[i][k] > 0)) continue;
+          var d1 = Math.abs(Math.log(M[i][j] * M[j][k] / M[i][k]));
+          var d2 = Math.abs(Math.log(M[j][k] * M[k][i] / M[j][i]));
+          var d = Math.max(d1, d2);
+          if (d > 0.35) out.push({ d: d, a: names[i], b: names[j], c: names[k] });
+        }
+      }
+    }
+    out.sort(function (x, y) { return y.d - x.d; });
+    return out.slice(0, 4);
+  }
+
+  /* 传递补全：由已填的比较关系沿图 BFS 推出全部未填项 */
+  function transitiveFill(M, filled) {
+    var n = M.length, i, j;
+    var adj = [];
+    for (i = 0; i < n; i++) adj.push([]);
+    for (i = 0; i < n; i++) for (j = 0; j < n; j++) {
+      if (filled[i][j] && M[i][j] > 0) adj[i].push(j);
+    }
+    var x = new Array(n).fill(null), seen = new Array(n).fill(false);
+    var start = -1;
+    for (i = 0; i < n; i++) { var deg = adj[i].length; if (deg > 0 && start < 0) start = i; }
+    if (start < 0) return 0;
+
+    var q = [start]; x[start] = 0; seen[start] = true;
+    while (q.length) {
+      var u = q.shift();
+      for (var t = 0; t < adj[u].length; t++) {
+        var v = adj[u][t];
+        if (seen[v]) continue;
+        x[v] = x[u] - Math.log(M[u][v]);       /* log(M[u][v]) = x[u] - x[v] */
+        seen[v] = true; q.push(v);
+      }
+    }
+    var SNAP = [1 / 9, 1 / 8, 1 / 7, 1 / 6, 1 / 5, 1 / 4, 1 / 3, 1 / 2, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+    var cnt = 0;
+    for (i = 0; i < n; i++) for (j = 0; j < n; j++) {
+      if (i === j) { M[i][j] = 1; continue; }
+      if (filled[i][j]) continue;
+      if (x[i] === null || x[j] === null) continue;
+      var target = Math.exp(x[i] - x[j]);
+      var best = SNAP[0], bd = Infinity;
+      for (var s = 0; s < SNAP.length; s++) {
+        var dd = Math.abs(Math.log(SNAP[s]) - Math.log(target));
+        if (dd < bd) { bd = dd; best = SNAP[s]; }
+      }
+      M[i][j] = best; M[j][i] = 1 / best;
+      filled[i][j] = true; filled[j][i] = true;
+      cnt++;
+    }
+    return cnt;
+  }
+
+  /* ---------------- 矩阵构造 ---------------- */
+  function newMatrix(n) {
+    var M = [], F = [], i, j;
+    for (i = 0; i < n; i++) {
+      M.push([]); F.push([]);
+      for (j = 0; j < n; j++) { M[i].push(i === j ? 1 : 1); F[i].push(i === j); }
+    }
+    return { M: M, F: F };
+  }
+  function ensureMatrix(dec) {
+    var nc = dec.criteria.length, na = dec.alts.length, i;
+    if (!dec.critM || dec.critM.length !== nc) {
+      var a = newMatrix(nc); dec.critM = a.M; dec.critF = a.F;
+    }
+    if (!dec.altM) dec.altM = {};
+    if (!dec.altF) dec.altF = {};
+    for (i = 0; i < nc; i++) {
+      var cid = dec.criteria[i].id;
+      if (!dec.altM[cid] || dec.altM[cid].length !== na) {
+        var b = newMatrix(na); dec.altM[cid] = b.M; dec.altF[cid] = b.F;
+      }
+    }
+    /* 清理已删准则的残留 */
+    Object.keys(dec.altM).forEach(function (k) {
+      if (!dec.criteria.some(function (c) { return c.id === k; })) {
+        delete dec.altM[k]; delete dec.altF[k];
+      }
+    });
+  }
+  function pairsOf(n) {
+    var out = [];
+    for (var i = 0; i < n; i++) for (var j = i + 1; j < n; j++) out.push([i, j]);
+    return out;
+  }
+
+  /* ---------------- 求解 ---------------- */
+  function solve(dec) {
+    ensureMatrix(dec);
+    var cn = dec.criteria.map(function (c) { return c.name; });
+    var an = dec.alts.map(function (a) { return a.name; });
+    var wc = geomWeights(dec.critM);
+    var cc = consistency(dec.critM, wc);
+
+    var per = [], i, k;
+    for (k = 0; k < dec.criteria.length; k++) {
+      var cid = dec.criteria[k].id;
+      var w = geomWeights(dec.altM[cid]);
+      per.push({ id: cid, name: cn[k], w: w, cr: consistency(dec.altM[cid], w) });
+    }
+    var total = an.map(function (_, i2) {
+      var s = 0;
+      for (k = 0; k < per.length; k++) s += wc[k] * per[k].w[i2];
+      return s;
+    });
+    var order = total.map(function (v, idx) { return { i: idx, v: v }; })
+      .sort(function (a, b) { return b.v - a.v; });
+
+    var allCR = [cc.CR].concat(per.map(function (p) { return p.cr.CR; }));
+    return {
+      critNames: cn, altNames: an, wc: wc, critCR: cc,
+      per: per, total: total, order: order,
+      maxCR: Math.max.apply(null, allCR),
+      ok: allCR.every(function (x) { return x < 0.10; }),
+      tri: worstTriples(dec.critM, cn)
+    };
+  }
+
+  /* ============================================================
+     数据
+     ============================================================ */
+  var STATE = null;
+
+  function blankDec(title) {
+    return {
+      id: uid(), title: title || '未命名决策',
+      goal: '', criteria: [], alts: [],
+      critM: null, critF: null, altM: {}, altF: {},
+      createdAt: Date.now(), updatedAt: Date.now()
+    };
+  }
+
+  function seedDec() {
+    var d = blankDec('毕业去向怎么选');
+    d.goal = '大三下学期，在考研、就业、考公、留学之间做出选择';
+    d.criteria = [
+      { id: uid(), name: '长期发展' },
+      { id: uid(), name: '上岸难度' },
+      { id: uid(), name: '经济成本' },
+      { id: uid(), name: '家庭期望' },
+      { id: uid(), name: '个人兴趣' }
+    ];
+    d.alts = [
+      { id: uid(), name: '考研' },
+      { id: uid(), name: '直接就业' },
+      { id: uid(), name: '考公考编' },
+      { id: uid(), name: '出国留学' }
+    ];
+    ensureMatrix(d);
+
+    /* 准则判断矩阵（已通过一致性检验 CR≈0.03） */
+    var C = [
+      [1, 3, 5, 4, 2],
+      [1 / 3, 1, 3, 2, 1 / 2],
+      [1 / 5, 1 / 3, 1, 1 / 2, 1 / 4],
+      [1 / 4, 1 / 2, 2, 1, 1 / 3],
+      [1 / 2, 2, 4, 3, 1]
+    ];
+    for (var i = 0; i < 5; i++) for (var j = 0; j < 5; j++) {
+      d.critM[i][j] = C[i][j]; d.critF[i][j] = true;
+    }
+
+    /* 五个准则下各自的方案矩阵 */
+    var A = [
+      [[1, 3, 2, 4], [1 / 3, 1, 1 / 2, 2], [1 / 2, 2, 1, 3], [1 / 4, 1 / 2, 1 / 3, 1]],
+      [[1, 1 / 4, 1 / 3, 1 / 6], [4, 1, 2, 1 / 2], [3, 1 / 2, 1, 1 / 3], [6, 2, 3, 1]],
+      [[1, 1 / 3, 1 / 2, 1 / 7], [3, 1, 2, 1 / 4], [2, 1 / 2, 1, 1 / 5], [7, 4, 5, 1]],
+      [[1, 2, 3, 1 / 2], [1 / 2, 1, 2, 1 / 3], [1 / 3, 1 / 2, 1, 1 / 5], [2, 3, 5, 1]],
+      [[1, 2, 1, 4], [1 / 2, 1, 1 / 2, 2], [1, 2, 1, 3], [1 / 4, 1 / 2, 1 / 3, 1]]
+    ];
+    for (var k = 0; k < 5; k++) {
+      var cid = d.criteria[k].id;
+      for (var a = 0; a < 4; a++) for (var b = 0; b < 4; b++) {
+        d.altM[cid][a][b] = A[k][a][b];
+        d.altF[cid][a][b] = true;
+      }
+    }
+    return d;
+  }
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(STATE)); }
+    catch (e) { toast('本地存储不可用，数据无法保存', 'err'); }
+  }
+  function load() {
+    var raw = null;
+    try { raw = localStorage.getItem(KEY); } catch (e) { raw = null; }
+    if (!raw) { STATE = { decisions: [seedDec()], active: null }; STATE.active = STATE.decisions[0].id; return; }
+    try {
+      var p = JSON.parse(raw);
+      if (!p || !Array.isArray(p.decisions) || !p.decisions.length) throw new Error('bad');
+      STATE = p;
+      STATE.decisions.forEach(ensureMatrix);
+      if (!STATE.active || !findDec(STATE.active)) STATE.active = STATE.decisions[0].id;
+    } catch (e) {
+      STATE = { decisions: [seedDec()], active: null };
+      STATE.active = STATE.decisions[0].id;
+      toast('本地数据损坏，已重置为示例', 'err');
+    }
+  }
+  function findDec(id) {
+    for (var i = 0; i < STATE.decisions.length; i++) if (STATE.decisions[i].id === id) return STATE.decisions[i];
+    return null;
+  }
+  function cur() { return findDec(STATE.active) || STATE.decisions[0]; }
+
+  /* ============================================================
+     视图：决策建模
+     ============================================================ */
+  function viewSetup() {
+    var d = cur();
+    var h = '';
+    h += '<div class="page-head"><h1>决策建模</h1><p>先说清楚「要选什么」和「用什么标准选」——AHP 的层次结构就这两层。</p></div>';
+
+    h += '<div class="card"><h2>基本信息</h2><p class="hint">决策目标写清楚，回头看时才记得当初为什么这么选。</p>';
+    h += '<div class="field"><label class="fl">决策标题</label><input type="text" id="inpTitle" value="' + esc(d.title) + '"></div>';
+    h += '<div class="field"><label class="fl">决策目标 / 背景</label><textarea id="inpGoal" placeholder="例如：大三下学期，在考研、就业、考公之间做出选择">' + esc(d.goal) + '</textarea></div>';
+    h += '<button class="btn btn-primary btn-sm" id="btnSaveMeta">保存</button></div>';
+
+    h += '<div class="card"><h2>备选方案 <span class="tag">' + d.alts.length + '</span></h2>';
+    h += '<p class="hint">2~9 个。它们是最终要排名的对象。</p>';
+    h += '<div class="chips" id="altChips">' + d.alts.map(function (a) {
+      return '<span class="chip">' + esc(a.name) + '<button class="x" data-delalt="' + a.id + '" title="删除">×</button></span>';
+    }).join('') + '</div>';
+    h += '<div class="inline-add"><input type="text" id="newAlt" placeholder="输入方案名后回车，如：考研"><button class="btn btn-sm" id="btnAddAlt">添加</button></div>';
+    h += '</div>';
+
+    h += '<div class="card"><h2>评价准则 <span class="tag">' + d.criteria.length + '</span></h2>';
+    h += '<p class="hint">2~9 个。准则之间应当相互独立、不重叠，否则权重会被重复计入。</p>';
+    h += '<div class="chips" id="critChips">' + d.criteria.map(function (c) {
+      return '<span class="chip">' + esc(c.name) + '<button class="x" data-delcrit="' + c.id + '" title="删除">×</button></span>';
+    }).join('') + '</div>';
+    h += '<div class="inline-add"><input type="text" id="newCrit" placeholder="输入准则名后回车，如：长期发展"><button class="btn btn-sm" id="btnAddCrit">添加</button></div>';
+    h += '</div>';
+
+    if (d.criteria.length >= 2 && d.alts.length >= 2) {
+      var pr = progress(d);
+      h += '<div class="card"><h2>建模完成度</h2><p class="hint">准则之间、每个准则下的方案之间，都需要做两两比较。</p>';
+      h += '<div class="prog' + (pr.done ? ' ok' : '') + '"><i style="width:' + pr.p + '%"></i></div>';
+      h += '<p class="hint" style="margin:10px 0 0">已填 ' + pr.filled + ' / ' + pr.total + ' 组比较（' + pr.p + '%）' +
+        (pr.done ? '　<span class="tag tag-ok">可出结果</span>' : '') + '</p>';
+      h += '<div style="margin-top:14px"><button class="btn btn-accent btn-sm" id="btnGoCompare">去比较 →</button></div></div>';
+    }
+    return h;
+  }
+
+  function progress(d) {
+    ensureMatrix(d);
+    var total = 0, filled = 0;
+    pairsOf(d.criteria.length).forEach(function (p) {
+      total++; if (d.critF[p[0]][p[1]]) filled++;
+    });
+    d.criteria.forEach(function (c) {
+      pairsOf(d.alts.length).forEach(function (p) {
+        total++; if (d.altF[c.id][p[0]][p[1]]) filled++;
+      });
+    });
+    return { total: total, filled: filled, p: total ? Math.round(filled / total * 100) : 0, done: total > 0 && filled === total };
+  }
+
+  function bindSetup() {
+    var d = cur();
+    $('#btnSaveMeta').onclick = function () {
+      d.title = $('#inpTitle').value.trim() || '未命名决策';
+      d.goal = $('#inpGoal').value.trim();
+      d.updatedAt = Date.now(); save(); renderPicker(); toast('已保存', 'ok');
+    };
+    function addAlt() {
+      var v = $('#newAlt').value.trim();
+      if (!v) { toast('方案名不能为空', 'err'); return; }
+      if (d.alts.some(function (a) { return a.name === v; })) { toast('已有同名方案', 'err'); return; }
+      if (d.alts.length >= 9) { toast('方案最多 9 个', 'err'); return; }
+      d.alts.push({ id: uid(), name: v }); ensureMatrix(d); save(); render();
+    }
+    function addCrit() {
+      var v = $('#newCrit').value.trim();
+      if (!v) { toast('准则名不能为空', 'err'); return; }
+      if (d.criteria.some(function (c) { return c.name === v; })) { toast('已有同名准则', 'err'); return; }
+      if (d.criteria.length >= 9) { toast('准则最多 9 个', 'err'); return; }
+      d.criteria.push({ id: uid(), name: v }); ensureMatrix(d); save(); render();
+    }
+    $('#btnAddAlt').onclick = addAlt;
+    $('#btnAddCrit').onclick = addCrit;
+    $('#newAlt').onkeydown = function (e) { if (e.key === 'Enter') addAlt(); };
+    $('#newCrit').onkeydown = function (e) { if (e.key === 'Enter') addCrit(); };
+    $$('[data-delalt]').forEach(function (b) {
+      b.onclick = function () {
+        var id = b.getAttribute('data-delalt');
+        if (d.alts.length <= 2) { toast('至少保留 2 个方案', 'err'); return; }
+        d.alts = d.alts.filter(function (a) { return a.id !== id; });
+        ensureMatrix(d); save(); render();
+      };
+    });
+    $$('[data-delcrit]').forEach(function (b) {
+      b.onclick = function () {
+        var id = b.getAttribute('data-delcrit');
+        if (d.criteria.length <= 2) { toast('至少保留 2 个准则', 'err'); return; }
+        d.criteria = d.criteria.filter(function (c) { return c.id !== id; });
+        ensureMatrix(d); save(); render();
+      };
+    });
+    if ($('#btnGoCompare')) $('#btnGoCompare').onclick = function () { go('compare'); };
+  }
+
+  /* ============================================================
+     视图：两两比较
+     ============================================================ */
+  var CMP = { mode: 'crit', critIdx: 0, idx: 0 };
+
+  function cmpStage() {
+    var d = cur();
+    if (CMP.mode === 'crit') {
+      var nc = d.criteria.length;
+      if (CMP.idx < 0) CMP.idx = 0;
+      if (CMP.idx >= pairsOf(nc).length) CMP.idx = pairsOf(nc).length - 1;
+      return {
+        names: d.criteria.map(function (c) { return c.name; }),
+        M: d.critM, F: d.critF,
+        pairs: pairsOf(nc),
+        qa: '就「' + esc(d.title) + '」这个目标而言',
+        qb: '哪个准则更重要？',
+        cidx: -1
+      };
+    }
+    if (CMP.critIdx >= d.criteria.length) CMP.critIdx = 0;
+    var c = d.criteria[CMP.critIdx];
+    var na = d.alts.length;
+    if (CMP.idx < 0) CMP.idx = 0;
+    if (CMP.idx >= pairsOf(na).length) CMP.idx = pairsOf(na).length - 1;
+    return {
+      names: d.alts.map(function (a) { return a.name; }),
+      M: d.altM[c.id], F: d.altF[c.id],
+      pairs: pairsOf(na),
+      qa: '就「' + esc(c.name) + '」这一准则而言',
+      qb: '哪个方案更占优？',
+      cidx: CMP.critIdx
+    };
+  }
+
+  function viewCompare() {
+    var d = cur();
+    ensureMatrix(d);
+    if (d.criteria.length < 2 || d.alts.length < 2) {
+      return '<div class="empty"><h2>先完成建模</h2><p>至少需要 2 个准则和 2 个方案才能开始比较。</p>' +
+        '<button class="btn btn-primary" id="btnToSetup">去建模</button></div>';
+    }
+    var st = cmpStage();
+    if (!st.pairs.length) {
+      return '<div class="empty"><h2>没有可比较的项</h2><p>请回到建模页添加方案或准则。</p></div>';
+    }
+    var pr = progress(d);
+    var h = '';
+    h += '<div class="page-head"><h1>两两比较</h1><p>用 1–9 标度表达「谁更重要、重要多少」。整体进度 ' + pr.filled + '/' + pr.total + '</p></div>';
+
+    /* 阶段切换 */
+    h += '<div class="card" style="padding:14px 16px">';
+    h += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
+    h += '<button class="btn btn-sm ' + (CMP.mode === 'crit' ? 'btn-primary' : 'btn-ghost') + '" data-mode="crit">准则之间</button>';
+    h += '<select id="critSel" class="picker" style="max-width:180px">';
+    d.criteria.forEach(function (c, i) {
+      h += '<option value="' + i + '"' + (CMP.mode === 'alt' && i === CMP.critIdx ? ' selected' : '') + '>' + esc(c.name) + ' 下的方案</option>';
+    });
+    h += '</select>';
+    h += '<button class="btn btn-sm" id="btnFill" style="margin-left:auto" title="按已填关系传递推导剩余项">传递补全</button>';
+    h += '</div>';
+    h += '<div class="prog' + (pr.done ? ' ok' : '') + '" style="margin-top:12px"><i style="width:' + pr.p + '%"></i></div>';
+    h += '</div>';
+
+    /* 当前这一对 */
+    var p = st.pairs[CMP.idx], i = p[0], j = p[1];
+    var val = st.M[i][j];
+    var SCALE = [9, 7, 5, 3, 1, 3, 5, 7, 9];   /* 左9 左7 左5 左3 等 右3 右5 右7 右9 */
+    var LABEL = ['极端', '强烈', '明显', '稍', '同等', '稍', '明显', '强烈', '极端'];
+
+    h += '<div class="cmp-card">';
+    h += '<div class="cmp-q"><span>' + st.qa + '，<b>' + st.qb + '</b></span>' +
+      '<span class="tag' + (st.F[i][j] ? ' tag-ok' : '') + '">' + (st.F[i][j] ? '已填' : '未填') + '</span></div>';
+    h += '<div class="cmp-row">';
+    h += '<div class="cmp-side' + (val > 1 ? ' win' : '') + '">' + esc(st.names[i]) + '</div>';
+    h += '<div class="scale">';
+    for (var s = 0; s < SCALE.length; s++) {
+      var isLeft = s < 4, mid = s === 4;
+      var v = isLeft ? SCALE[s] : (mid ? 1 : 1 / SCALE[s]);
+      var on = Math.abs(Math.log(val) - Math.log(v)) < 1e-9;
+      h += '<button class="' + (mid ? 'mid' : '') + (on ? ' on' : '') + '" data-v="' + v + '">' + SCALE[s] + '</button>';
+    }
+    h += '</div>';
+    h += '<div class="cmp-side' + (val < 1 ? ' win' : '') + '">' + esc(st.names[j]) + '</div>';
+    h += '</div>';
+    h += '<div class="cmp-lab">左 · ' + LABEL.join(' / ') + ' · 右</div>';
+    h += '</div>';
+
+    h += '<div class="cmp-nav">';
+    h += '<button class="btn btn-sm" id="btnPrev"' + (CMP.idx === 0 ? ' disabled' : '') + '>← 上一对</button>';
+    h += '<span class="tag tag-pri">第 ' + (CMP.idx + 1) + ' / ' + st.pairs.length + ' 对</span>';
+    h += '<button class="btn btn-sm btn-primary" id="btnNext"' + (CMP.idx === st.pairs.length - 1 ? ' disabled' : '') + '>下一对 →</button>';
+    h += '</div>';
+
+    /* 当前阶段所有配对一览 */
+    h += '<div class="card" style="margin-top:16px"><h3>本阶段全部配对</h3><p class="hint">点任意一行可直接跳过去改。</p>';
+    h += '<div style="display:flex;flex-direction:column;gap:6px">';
+    st.pairs.forEach(function (pp, k) {
+      var a = pp[0], b = pp[1], vv = st.M[a][b], done = st.F[a][b];
+      var txt;
+      if (!done) txt = '<span style="color:var(--ink-3)">未填</span>';
+      else if (vv > 1) txt = esc(st.names[a]) + ' <b>' + round(vv, 2) + '</b> : 1　' + esc(st.names[b]);
+      else if (vv < 1) txt = esc(st.names[b]) + ' <b>' + round(1 / vv, 2) + '</b> : 1　' + esc(st.names[a]);
+      else txt = '两者同等重要';
+      h += '<div data-jump="' + k + '" style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 12px;border-radius:8px;cursor:pointer;background:' +
+        (k === CMP.idx ? 'var(--primary-l)' : 'var(--surface-2)') + ';font-size:13px">' +
+        '<span>' + txt + '</span><span class="tag ' + (done ? 'tag-ok' : '') + '">' + (done ? '✓' : '·') + '</span></div>';
+    });
+    h += '</div></div>';
+    return h;
+  }
+
+  function bindCompare() {
+    if ($('#btnToSetup')) { $('#btnToSetup').onclick = function () { go('setup'); }; return; }
+    var d = cur();
+    var st = cmpStage();
+
+    $$('[data-mode]').forEach(function (b) {
+      b.onclick = function () { CMP.mode = 'crit'; CMP.idx = 0; render(); };
+    });
+    $('#critSel').onchange = function () {
+      CMP.mode = 'alt'; CMP.critIdx = parseInt(this.value, 10) || 0; CMP.idx = 0; render();
+    };
+    $('#btnFill').onclick = function () {
+      var n = transitiveFill(st.M, st.F);
+      save();
+      toast(n > 0 ? ('补全了 ' + n + ' 项') : '已有的比较不足以推导', n > 0 ? 'ok' : 'err');
+      render();
+    };
+    $$('.scale [data-v]').forEach(function (b) {
+      b.onclick = function () {
+        var v = parseFloat(b.getAttribute('data-v'));
+        var p = st.pairs[CMP.idx];
+        st.M[p[0]][p[1]] = v;
+        st.M[p[1]][p[0]] = 1 / v;
+        st.F[p[0]][p[1]] = true; st.F[p[1]][p[0]] = true;
+        save();
+        if (CMP.idx < st.pairs.length - 1) CMP.idx++;
+        render();
+      };
+    });
+    $$('[data-jump]').forEach(function (el) {
+      el.onclick = function () { CMP.idx = parseInt(el.getAttribute('data-jump'), 10); render(); };
+    });
+    if ($('#btnPrev')) $('#btnPrev').onclick = function () { CMP.idx--; render(); };
+    if ($('#btnNext')) $('#btnNext').onclick = function () { CMP.idx++; render(); };
+  }
+
+  /* ============================================================
+     视图：权重结果
+     ============================================================ */
+  function viewResult() {
+    var d = cur();
+    ensureMatrix(d);
+    var pr = progress(d);
+    if (!pr.done) {
+      return '<div class="empty"><h2>比较还没填完</h2><p>还有 ' + (pr.total - pr.filled) + ' 组没填。可以「传递补全」，也可以逐项补。</p>' +
+        '<button class="btn btn-primary" id="btnToCmp">去补齐比较</button></div>';
+    }
+    var r = solve(d);
+    var h = '';
+    h += '<div class="page-head"><h1>权重结果</h1><p>' + esc(d.title) + '　·　' + d.criteria.length + ' 准则 × ' + d.alts.length + ' 方案</p></div>';
+
+    /* 结论 */
+    var top = r.order[0];
+    var margin = r.order.length > 1 ? (top.v - r.order[1].v) : top.v;
+    h += '<div class="card" style="border-left:4px solid var(--accent)">';
+    h += '<h2>结论：<span style="color:var(--accent)">' + esc(r.altNames[top.i]) + '</span></h2>';
+    h += '<p class="hint">综合权重 ' + pct(top.v) + '，领先第二名 ' + esc(r.altNames[r.order[1].i]) +
+      ' ' + pct(margin) + '。' + (margin < 0.03 ? '差距很小，建议看敏感性分析再定。' : '差距较明显，结论稳健。') + '</p>';
+    h += '<span class="tag ' + (r.ok ? 'tag-ok' : 'tag-bad') + '">' +
+      (r.ok ? '全部矩阵通过一致性检验' : '存在不一致矩阵，结果仅供参考') + '</span>　';
+    h += '<span class="tag tag-pri">最大 CR ' + round(r.maxCR, 4) + '</span>';
+    h += '</div>';
+
+    /* 总排序 */
+    h += '<div class="card"><h2>方案总排序</h2><p class="hint">各准则权重 × 该准则下方案权重，逐层加权汇总。</p><ul class="rank">';
+    r.order.forEach(function (o, k) {
+      h += '<li class="' + (k === 0 ? 'top' : '') + '"><span class="rank-no">' + (k + 1) + '</span>' +
+        '<span class="rank-name">' + esc(r.altNames[o.i]) + '</span>' +
+        '<span class="rank-bar"><i style="width:' + (o.v * 100).toFixed(1) + '%"></i></span>' +
+        '<span class="rank-val">' + pct(o.v) + '</span></li>';
+    });
+    h += '</ul></div>';
+
+    /* 准则权重 + 明细矩阵 */
+    h += '<div class="grid-2">';
+    h += '<div class="card"><h2>准则权重</h2><p class="hint">决定「你到底在乎什么」。</p><ul class="rank">';
+    var cw = r.wc.map(function (v, i) { return { i: i, v: v }; }).sort(function (a, b) { return b.v - a.v; });
+    cw.forEach(function (o, k) {
+      h += '<li class="' + (k === 0 ? 'top' : '') + '"><span class="rank-no">' + (k + 1) + '</span>' +
+        '<span class="rank-name">' + esc(r.critNames[o.i]) + '</span>' +
+        '<span class="rank-bar"><i style="width:' + (o.v * 100).toFixed(1) + '%"></i></span>' +
+        '<span class="rank-val">' + pct(o.v) + '</span></li>';
+    });
+    h += '</ul></div>';
+
+    h += '<div class="card"><h2>各准则下方案权重</h2><p class="hint">行=准则，列=方案，格子越绿越占优。</p>';
+    h += heatTable(r.per, r.altNames);
+    h += '</div></div>';
+
+    /* 敏感性 */
+    h += sensitivityBlock(d, r);
+
+    return h;
+  }
+
+  function heatTable(per, altNames) {
+    var h = '<div class="mtx-scroll"><table class="mtx"><tr><th></th>';
+    altNames.forEach(function (n) { h += '<th>' + esc(n) + '</th>'; });
+    h += '</tr>';
+    per.forEach(function (p) {
+      h += '<tr><th class="rowlab">' + esc(p.name) + '</th>';
+      p.w.forEach(function (v) {
+        var t = clamp(v / Math.max.apply(null, p.w), 0, 1);
+        var bg = 'rgba(31,122,92,' + (0.06 + t * 0.62).toFixed(3) + ')';
+        var col = t > 0.55 ? '#fff' : 'var(--ink)';
+        h += '<td style="background:' + bg + ';color:' + col + ';border:none">' + pct(v) + '</td>';
+      });
+      h += '</tr>';
+    });
+    h += '</table></div>';
+    return h;
+  }
+
+  var SENS = { idx: 0, val: null };
+
+  function sensitivityBlock(d, r) {
+    var h = '<div class="card"><h2>敏感性分析</h2>';
+    h += '<p class="hint">拖动某个准则的权重，看结论在什么位置会被推翻。这比一个静态排名更值得信。</p>';
+
+    h += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">';
+    r.critNames.forEach(function (n, i) {
+      h += '<button class="btn btn-sm ' + (i === SENS.idx ? 'btn-primary' : 'btn-ghost') + '" data-sens="' + i + '">' + esc(n) + '</button>';
+    });
+    h += '</div>';
+
+    var cur = SENS.val == null ? r.wc[SENS.idx] : SENS.val;
+    var w2 = reweight(r.wc, SENS.idx, cur);
+    var tot2 = r.altNames.map(function (_, i) {
+      var s = 0; for (var k = 0; k < r.per.length; k++) s += w2[k] * r.per[k].w[i]; return s;
+    });
+    var ord2 = tot2.map(function (v, i) { return { i: i, v: v }; }).sort(function (a, b) { return b.v - a.v; });
+
+    h += '<div class="slider-row"><label>' + esc(r.critNames[SENS.idx]) + '</label>' +
+      '<input type="range" id="sensRange" min="0" max="100" value="' + Math.round(cur * 100) + '">' +
+      '<span class="v" id="sensVal">' + pct(cur) + '</span></div>';
+    h += '<p class="hint">其余准则按原比例自动缩放，保持总和为 1。原始值 ' + pct(r.wc[SENS.idx]) + '。' +
+      (Math.abs(cur - r.wc[SENS.idx]) > 0.005 ? '　<button class="btn btn-sm btn-ghost" id="btnReset" style="margin-left:6px">复位</button>' : '') + '</p>';
+
+    h += '<ul class="rank" style="margin-top:6px">';
+    ord2.forEach(function (o, k) {
+      h += '<li class="' + (k === 0 ? 'top' : '') + '"><span class="rank-no">' + (k + 1) + '</span>' +
+        '<span class="rank-name">' + esc(r.altNames[o.i]) + '</span>' +
+        '<span class="rank-bar"><i style="width:' + (o.v * 100).toFixed(1) + '%"></i></span>' +
+        '<span class="rank-val">' + pct(o.v) + '</span></li>';
+    });
+    h += '</ul>';
+
+    /* 翻盘点扫描 */
+    var flips = [];
+    for (var s = 0; s <= 100; s++) {
+      var wv = s / 100, wt = reweight(r.wc, SENS.idx, wv);
+      var tt = r.altNames.map(function (_, i) {
+        var q = 0; for (var k = 0; k < r.per.length; k++) q += wt[k] * r.per[k].w[i]; return q;
+      });
+      var best = 0; for (var m = 1; m < tt.length; m++) if (tt[m] > tt[best]) best = m;
+      flips.push(best);
+    }
+    var changes = [];
+    for (var s2 = 1; s2 < flips.length; s2++) if (flips[s2] !== flips[s2 - 1]) changes.push(s2);
+    if (changes.length) {
+      h += '<div class="flip-note"><b>翻盘点：</b>当「' + esc(r.critNames[SENS.idx]) + '」的权重经过 ' +
+        changes.map(function (c) { return c + '%'; }).join('、') +
+        ' 时，首选方案会改变' + (changes.length === 1 ? '（当前最优在两侧分别是 ' +
+          esc(r.altNames[flips[Math.max(0, changes[0] - 1)]]) + ' 与 ' + esc(r.altNames[flips[changes[0]]]) + '）' : '') + '。</div>';
+    } else {
+      h += '<div class="flip-note" style="background:var(--ok-l);border-color:#BFE3D3;color:#155E45">' +
+        '<b>结论稳健：</b>无论「' + esc(r.critNames[SENS.idx]) + '」权重取 0 还是 100%，首选方案始终是 ' +
+        esc(r.altNames[flips[50]]) + '。</div>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  function reweight(wc, idx, target) {
+    var rest = 0, i;
+    for (i = 0; i < wc.length; i++) if (i !== idx) rest += wc[i];
+    var out = new Array(wc.length);
+    var room = 1 - target;
+    if (rest <= 1e-9) {
+      for (i = 0; i < wc.length; i++) out[i] = (i === idx) ? target : room / (wc.length - 1);
+    } else {
+      for (i = 0; i < wc.length; i++) out[i] = (i === idx) ? target : wc[i] / rest * room;
+    }
+    return out;
+  }
+
+  function bindResult() {
+    if ($('#btnToCmp')) { $('#btnToCmp').onclick = function () { go('compare'); }; return; }
+    var d = cur(); var r = solve(d);
+    $$('[data-sens]').forEach(function (b) {
+      b.onclick = function () { SENS.idx = parseInt(b.getAttribute('data-sens'), 10); SENS.val = null; render(); };
+    });
+    if ($('#sensRange')) {
+      $('#sensRange').oninput = function () {
+        SENS.val = parseInt(this.value, 10) / 100;
+        $('#sensVal').textContent = pct(SENS.val);
+      };
+      $('#sensRange').onchange = function () { render(); };
+    }
+    if ($('#btnReset')) $('#btnReset').onclick = function () { SENS.val = null; render(); };
+  }
+
+  /* ============================================================
+     视图：矩阵与检验
+     ============================================================ */
+  function viewMatrix() {
+    var d = cur(); ensureMatrix(d);
+    var r = solve(d);
+    var h = '';
+    h += '<div class="page-head"><h1>矩阵与一致性检验</h1><p>把主观判断摊开来看——CR 越接近 0，说明你的判断越自洽。</p></div>';
+
+    h += '<div class="card"><h2>整体检验</h2>';
+    h += '<div class="cr-box ' + (r.ok ? 'good' : 'bad') + '">' +
+      '<div><div class="cr-num">' + round(r.maxCR, 4) + '<small>最大 CR</small></div></div>' +
+      '<div style="flex:1;min-width:200px;font-size:13px">' +
+      (r.ok
+        ? '全部 ' + (r.per.length + 1) + ' 个判断矩阵的 CR 均小于 0.10，一致性可接受，结果可用。'
+        : '存在 CR ≥ 0.10 的矩阵，说明部分判断互相矛盾（如 A > B、B > C 却 C > A）。建议复核下方标红项。') +
+      '</div></div>';
+    h += '<div class="grid-3" style="margin-top:14px">';
+    h += miniStat('λmax', round(r.critCR.lambda, 4), '准则矩阵最大特征根');
+    h += miniStat('CI', round(r.critCR.CI, 4), '一致性指标 (λmax−n)/(n−1)');
+    h += miniStat('CR', round(r.critCR.CR, 4), 'CI / RI，需 < 0.10');
+    h += '</div></div>';
+
+    h += '<div class="card"><h2>准则判断矩阵</h2><p class="hint">第 i 行第 j 列 = 第 i 个准则相对于第 j 个准则的重要程度。</p>';
+    h += matrixTable(r.critNames, d.critM, d.critF, r.wc);
+    h += '<p class="hint" style="margin:12px 0 0">CR = <b>' + round(r.critCR.CR, 4) + '</b>　' +
+      '<span class="tag ' + (r.critCR.ok ? 'tag-ok' : 'tag-bad') + '">' + (r.critCR.ok ? '通过' : '不通过') + '</span></p>';
+    h += '</div>';
+
+    r.per.forEach(function (p, k) {
+      var M = d.altM[p.id], F = d.altF[p.id];
+      h += '<div class="card"><h2>' + esc(p.name) + ' · 方案矩阵</h2>';
+      h += matrixTable(r.altNames, M, F, p.w);
+      h += '<p class="hint" style="margin:12px 0 0">CR = <b>' + round(p.cr.CR, 4) + '</b>　' +
+        '<span class="tag ' + (p.cr.ok ? 'tag-ok' : 'tag-bad') + '">' + (p.cr.ok ? '通过' : '不通过') + '</span></p>';
+      h += '</div>';
+    });
+
+    if (r.tri.length) {
+      h += '<div class="card" style="border-left:4px solid var(--bad)"><h2>建议复核的三元组</h2>';
+      h += '<p class="hint">这些组合里的判断互相打架，改动它们对降低 CR 最有效。</p><ul style="margin:0;padding-left:20px">';
+      r.tri.forEach(function (t) {
+        h += '<li style="margin-bottom:6px"><b>' + esc(t.a) + ' / ' + esc(t.b) + ' / ' + esc(t.c) + '</b>' +
+          '　偏差 ' + round(t.d, 2) + '（对数尺度）</li>';
+      });
+      h += '</ul></div>';
+    }
+    return h;
+  }
+
+  function miniStat(label, val, desc) {
+    return '<div style="padding:12px 14px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line)">' +
+      '<div style="font-size:11.5px;color:var(--ink-3);font-weight:600">' + label + '</div>' +
+      '<div style="font-family:var(--mono);font-size:19px;font-weight:800;margin:2px 0">' + val + '</div>' +
+      '<div style="font-size:11.5px;color:var(--ink-3)">' + desc + '</div></div>';
+  }
+
+  function matrixTable(names, M, F, w) {
+    var h = '<div class="mtx-scroll"><table class="mtx"><tr><th></th>';
+    names.forEach(function (n) { h += '<th>' + esc(n) + '</th>'; });
+    h += '<th style="padding-left:12px">权重</th></tr>';
+    for (var i = 0; i < names.length; i++) {
+      h += '<tr><th class="rowlab">' + esc(names[i]) + '</th>';
+      for (var j = 0; j < names.length; j++) {
+        if (i === j) { h += '<td class="diag">1</td>'; continue; }
+        var v = M[i][j];
+        var txt = v >= 1 ? String(round(v, 2)) : '1/' + String(round(1 / v, 2));
+        var bad = false;
+        /* 与权重之比偏离过大则标红 */
+        if (w[j] > 0) { var ratio = w[i] / w[j]; if (ratio > 0 && (v / ratio > 1.8 || ratio / v > 1.8)) bad = true; }
+        h += '<td' + (bad ? ' style="background:var(--bad-l);color:var(--bad);border-color:#F0CFCB"' : (F[i][j] ? '' : ' style="opacity:.45"')) + '>' + txt + '</td>';
+      }
+      h += '<td style="padding-left:12px;font-weight:700;color:var(--primary);border:none">' + pct(w[i]) + '</td>';
+      h += '</tr>';
+    }
+    h += '</table></div>';
+    return h;
+  }
+
+  /* ============================================================
+     视图：算法说明
+     ============================================================ */
+  function viewAbout() {
+    var h = '<div class="page-head"><h1>算法说明</h1><p>AHP 层次分析法 · 几何平均法求权重 · 一致性检验</p></div>';
+    h += '<div class="card prose">';
+
+    h += '<h2>为什么需要这套方法</h2>';
+    h += '<p>面对「考研还是就业」这种问题，人的直觉在两个地方会失效：一是<b>准则太多</b>，脑子里同时装不下五六个维度的权衡；' +
+      '二是<b>判断会自相矛盾</b>——你觉得 A 比 B 重要、B 比 C 重要，转头又觉得 C 比 A 重要。' +
+      'AHP 的价值就在于：把前一个问题拆成可计算的层次，把后一个问题变成可检验的数字。</p>';
+
+    h += '<h2>一、构造判断矩阵</h2>';
+    h += '<p>对同一层的 n 个元素两两比较，用 1–9 标度记录相对重要程度，得到正互反矩阵 A（a<sub>ij</sub> = 1/a<sub>ji</sub>，a<sub>ii</sub> = 1）。</p>';
+    h += '<table class="tbl"><tr><th>标度</th><th>含义</th></tr>' +
+      '<tr><td>1</td><td>两者同等重要</td></tr>' +
+      '<tr><td>3</td><td>前者稍微重要</td></tr>' +
+      '<tr><td>5</td><td>前者明显重要</td></tr>' +
+      '<tr><td>7</td><td>前者强烈重要</td></tr>' +
+      '<tr><td>9</td><td>前者极端重要</td></tr>' +
+      '<tr><td>2, 4, 6, 8</td><td>上述相邻判断的中间值</td></tr></table>';
+    h += '<p>本应用在比较页提供了「传递补全」：只填一部分比较，其余由已填关系沿图做广度优先推导，' +
+      '在对数尺度上按 log a<sub>ij</sub> = x<sub>i</sub> − x<sub>j</sub> 传播，再吸附到最近的合法标度。</p>';
+
+    h += '<h2>二、求权重（几何平均法）</h2>';
+    h += '<p>取每一行元素的几何平均，再归一化：</p>';
+    h += '<div class="formula">wᵢ = ( ∏ⱼ aᵢⱼ )^(1/n)  /  Σₖ ( ∏ⱼ aₖⱼ )^(1/n)</div>';
+    h += '<p>它等价于在<b>对数最小二乘</b>意义下的最优解，比「算术平均」更符合比较的乘性本质，' +
+      '而且不存在特征向量法在小矩阵上的迭代收敛问题。</p>';
+
+    h += '<h2>三、一致性检验</h2>';
+    h += '<p>若判断完全自洽，应有 a<sub>ij</sub> · a<sub>jk</sub> = a<sub>ik</sub>，此时 A 的最大特征根 λmax = n。' +
+      '偏离越大，λmax 越大于 n：</p>';
+    h += '<div class="formula">CI = (λmax − n) / (n − 1)\nCR = CI / RI</div>';
+    h += '<p>RI 是同阶随机矩阵的一致性指标平均值（n = 3~9 时取 0.58、0.90、1.12、1.24、1.32、1.41、1.45）。' +
+      '<b>CR &lt; 0.10 视为可接受</b>；超过则说明判断有内在矛盾，结果不可直接采信。</p>';
+    h += '<p>本应用在「矩阵与检验」页会标红与权重之比偏离过大的格子，并列出最不自洽的三元组——' +
+      '改这几个位置对降低 CR 的效率最高。</p>';
+
+    h += '<h2>四、层次总排序</h2>';
+    h += '<p>准则权重 w<sup>c</sup> 与各准则下方案权重 w<sup>a|k</sup> 加权汇总：</p>';
+    h += '<div class="formula">Wᵢ = Σₖ  wᶜₖ · wᵃ|ᵏᵢ</div>';
+
+    h += '<h2>五、敏感性分析</h2>';
+    h += '<p>一个静态排名说服力有限。更有意义的问题是：<b>我的结论在什么条件下会被推翻？</b>' +
+      '本应用把某个准则的权重从 0% 扫到 100%（其余准则按原比例缩放保持和为 1），' +
+      '记录首选方案发生改变的临界位置，即<b>翻盘点</b>。若全程不翻转，说明结论对该准则不敏感，可以放心采纳；' +
+      '若翻盘点离当前值很近，说明这个准则就是决策的胜负手，值得再认真想一遍。</p>';
+
+    h += '<h2>已知边界</h2>';
+    h += '<ul>';
+    h += '<li>AHP 假设准则之间相互独立，现实中准则常有重叠，会放大某些因素的权重</li>';
+    h += '<li>1–9 标度是离散的，细微偏好表达不出来</li>';
+    h += '<li>方案增删会改变判断矩阵，进而可能改变既有排序（秩反转），AHP 对此没有根本解法</li>';
+    h += '<li>输出是「在你说出的偏好下最自洽的答案」，不等于客观上最优</li>';
+    h += '</ul>';
+
+    h += '<h2>技术</h2>';
+    h += '<p>原生 HTML / CSS / JavaScript，零第三方依赖，无构建、无 CDN、可离线。' +
+      '数据存于浏览器 localStorage（键 <code>scale.store.v1</code>），支持 JSON 导出导入。' +
+      '换设备或清缓存前请记得导出。</p>';
+    h += '</div>';
+    return h;
+  }
+
+  /* ============================================================
+     路由 / 渲染
+     ============================================================ */
+  var VIEWS = {
+    setup: { title: '决策建模', fn: viewSetup, bind: bindSetup },
+    compare: { title: '两两比较', fn: viewCompare, bind: bindCompare },
+    result: { title: '权重结果', fn: viewResult, bind: bindResult },
+    matrix: { title: '矩阵与检验', fn: viewMatrix, bind: function () { } },
+    about: { title: '算法说明', fn: viewAbout, bind: function () { } }
+  };
+  var CURVIEW = 'setup';
+
+  function render() {
+    var v = VIEWS[CURVIEW];
+    $('#main').innerHTML = v.fn();
+    try { v.bind(); } catch (e) { }
+    $$('.nav-item').forEach(function (a) {
+      a.classList.toggle('on', a.getAttribute('data-view') === CURVIEW);
+    });
+    window.scrollTo(0, 0);
+  }
+  function go(name) { if (VIEWS[name]) { CURVIEW = name; render(); } }
+
+  function renderPicker() {
+    var sel = $('#decisionPicker');
+    sel.innerHTML = STATE.decisions.map(function (d) {
+      return '<option value="' + d.id + '"' + (d.id === STATE.active ? ' selected' : '') + '>' + esc(d.title) + '</option>';
+    }).join('');
+  }
+
+  /* ---------------- 导入导出 ---------------- */
+  function exportJSON() {
+    var blob = new Blob([JSON.stringify(STATE, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'scale-decisions-' + new Date().toISOString().slice(0, 10) + '.json';
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    toast('已导出', 'ok');
+  }
+  function importJSON(file) {
+    var fr = new FileReader();
+    fr.onload = function () {
+      try {
+        var p = JSON.parse(String(fr.result));
+        var list = Array.isArray(p) ? p : (p && Array.isArray(p.decisions) ? p.decisions : null);
+        if (!list || !list.length) throw new Error('no decisions');
+        list.forEach(function (d) {
+          if (!d.id) d.id = uid();
+          if (!Array.isArray(d.criteria) || !Array.isArray(d.alts)) throw new Error('bad shape');
+          d.criteria.forEach(function (c) { if (!c.id) c.id = uid(); });
+          d.alts.forEach(function (a) { if (!a.id) a.id = uid(); });
+          ensureMatrix(d);
+        });
+        STATE.decisions = STATE.decisions.concat(list);
+        STATE.active = list[0].id;
+        save(); renderPicker(); render();
+        toast('导入了 ' + list.length + ' 个决策', 'ok');
+      } catch (e) {
+        toast('文件格式不对，需要本应用导出的 JSON', 'err');
+      }
+    };
+    fr.onerror = function () { toast('读取文件失败', 'err'); };
+    fr.readAsText(file);
+  }
+
+  /* ---------------- 新建决策 ---------------- */
+  function openNew() {
+    var root = $('#modalRoot');
+    root.innerHTML = '<div class="modal-mask"><div class="modal">' +
+      '<h2>新建决策</h2>' +
+      '<div class="field"><label class="fl">决策标题</label><input type="text" id="mTitle" placeholder="例如：买哪台笔记本"></div>' +
+      '<div class="field"><label class="fl">决策目标 / 背景</label><textarea id="mGoal" placeholder="一句话说清楚你在纠结什么"></textarea></div>' +
+      '<div class="field"><label class="fl">备选方案（每行一个，至少 2 个）</label><textarea id="mAlts" placeholder="ThinkPad&#10;MacBook Air&#10;游戏本"></textarea></div>' +
+      '<div class="field"><label class="fl">评价准则（每行一个，至少 2 个）</label><textarea id="mCrit" placeholder="价格&#10;性能&#10;便携&#10;续航"></textarea></div>' +
+      '<div class="modal-foot"><button class="btn" id="mCancel">取消</button><button class="btn btn-primary" id="mOk">创建</button></div>' +
+      '</div></div>';
+    $('#mCancel').onclick = function () { root.innerHTML = ''; };
+    $('.modal-mask').onclick = function (e) { if (e.target === this) root.innerHTML = ''; };
+    $('#mOk').onclick = function () {
+      var lines = function (s) { return s.split('\n').map(function (x) { return x.trim(); }).filter(Boolean); };
+      var t = $('#mTitle').value.trim();
+      var alts = lines($('#mAlts').value);
+      var crit = lines($('#mCrit').value);
+      if (!t) { toast('请填标题', 'err'); return; }
+      if (alts.length < 2) { toast('至少需要 2 个方案', 'err'); return; }
+      if (crit.length < 2) { toast('至少需要 2 个准则', 'err'); return; }
+      if (alts.length > 9 || crit.length > 9) { toast('方案与准则各不超过 9 个', 'err'); return; }
+      var d = blankDec(t);
+      d.goal = $('#mGoal').value.trim();
+      d.alts = alts.map(function (n) { return { id: uid(), name: n }; });
+      d.criteria = crit.map(function (n) { return { id: uid(), name: n }; });
+      ensureMatrix(d);
+      STATE.decisions.push(d); STATE.active = d.id;
+      CMP.mode = 'crit'; CMP.idx = 0; CMP.critIdx = 0; SENS.idx = 0; SENS.val = null;
+      save(); root.innerHTML = ''; renderPicker(); go('compare');
+      toast('已创建，开始比较吧', 'ok');
+    };
+  }
+
+  /* ---------------- 启动 ---------------- */
+  function boot() {
+    load();
+    renderPicker();
+    $('#decisionPicker').onchange = function () {
+      STATE.active = this.value; save();
+      CMP.idx = 0; CMP.critIdx = 0; CMP.mode = 'crit'; SENS.idx = 0; SENS.val = null;
+      render();
+    };
+    $('#btnNew').onclick = openNew;
+    $('#btnExport').onclick = exportJSON;
+    $('#btnImport').onclick = function () { $('#fileInput').click(); };
+    $('#fileInput').onchange = function () {
+      if (this.files && this.files[0]) importJSON(this.files[0]);
+      this.value = '';
+    };
+    $$('.nav-item').forEach(function (a) {
+      a.onclick = function (e) { e.preventDefault(); go(a.getAttribute('data-view')); };
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+      if (CURVIEW !== 'compare') return;
+      if (e.key === 'ArrowLeft') { CMP.idx = Math.max(0, CMP.idx - 1); render(); }
+      if (e.key === 'ArrowRight') { CMP.idx++; render(); }
+    });
+    render();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+</script>
+</body>
+</html>
