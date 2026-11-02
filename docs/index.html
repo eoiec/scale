@@ -1069,7 +1069,10 @@ table.tbl th{background:var(--surface-2);font-weight:600;font-size:12.5px}
         SENS.val = parseInt(this.value, 10) / 100;
         $('#sensVal').textContent = pct(SENS.val);
       };
-      $('#sensRange').onchange = function () { render(); };
+      $('#sensRange').onchange = function () {
+        SENS.val = parseInt(this.value, 10) / 100;
+        render(true);
+      };
     }
     if ($('#btnReset')) $('#btnReset').onclick = function () { SENS.val = null; render(); };
   }
@@ -1230,14 +1233,19 @@ table.tbl th{background:var(--surface-2);font-weight:600;font-size:12.5px}
   };
   var CURVIEW = 'setup';
 
-  function render() {
+  function render(keepScroll) {
+    var y = keepScroll ? window.scrollY : 0;
     var v = VIEWS[CURVIEW];
     $('#main').innerHTML = v.fn();
     try { v.bind(); } catch (e) { }
     $$('.nav-item').forEach(function (a) {
       a.classList.toggle('on', a.getAttribute('data-view') === CURVIEW);
     });
-    window.scrollTo(0, 0);
+    window.scrollTo(0, y);
+    /* 保持滚动位置后，把滑块重新聚焦，方便连续微调 */
+    if (keepScroll && CURVIEW === 'result' && $('#sensRange')) {
+      try { $('#sensRange').focus(); } catch (e) { }
+    }
   }
   function go(name) { if (VIEWS[name]) { CURVIEW = name; render(); } }
 
